@@ -16,7 +16,7 @@ if (!require("processx"))
 library(nlme)
 if (!require("scales"))
     install.packages("scales")
-
+library("devtools")
 library(shiny)
 #devtools::install_github("gschofl/reutils")
 options(reutils.api.key = "34ad5abbcddf5a94d9dbfb34ad005be64d0a")
@@ -34,7 +34,9 @@ ui <- fluidPage(
             dateInput("datefin", label = h3("Date fin"), value = "2017-12-31"),
             numericInput("num_max", label = h3("Num max"), value = 2),
             actionButton(inputId = "go", label = "Update"),
+            
             verbatimTextOutput("value")
+            
         ),
         
         
@@ -47,7 +49,7 @@ ui <- fluidPage(
             h1("Base mise en forme"),
             verbatimTextOutput("test"),
             downloadButton("downloadData", "Download"),
-            uiOutput("tab") 
+            uiOutput("tab")
         )
     )
 )
@@ -58,7 +60,7 @@ server <- function(input, output) {
     library(rentrez)
     library("XML")
     library(reutils)
-    library(stringr) 
+    
     library(lubridate)
     library(stringr)
     
@@ -74,22 +76,30 @@ server <- function(input, output) {
     
     
     pubmed <- reactiveValues(ids="Attente confirmation")
-    a <- "Resultat"
-    observeEvent(input$go,{pubmed$ids <- entrez_search(db = "pubmed", term = rv$data ,mindate=rv$datedebut,maxdate=rv$datefin ,retmax=rv$n_max, api_key = "34ad5abbcddf5a94d9dbfb34ad005be64d0a")$ids })
-    #entrez_search(db = "pubmed", term = rv$data ,mindate=rv$datedebut,maxdate=rv$datefin ,retmax="15")}
     output$value <-renderPrint({
         pubmed$ids
     })
-    
+    a <- "Resultat"
+    observeEvent(input$go,{pubmed$ids <- entrez_search(db = "pubmed", term = rv$data ,mindate=rv$datedebut,maxdate=rv$datefin ,retmax=rv$n_max, api_key = "34ad5abbcddf5a94d9dbfb34ad005be64d0a")$ids 
+    #entrez_search(db = "pubmed", term = rv$data ,mindate=rv$datedebut,maxdate=rv$datefin ,retmax="15")}
+    output$value <-renderPrint({
+        pubmed$ids[1:10]
+    })
+    })
     
     date_jour <- str_sub(date(),start = 9,end = 10)
     date_mois <- str_sub(date(),start = 5,end = 7)
     date_annee <- str_sub(date(),start = 21,end = 24)
     date_heure <- str_c(str_sub(date(),start = 12,end = 13),"h", str_sub(date(),start = 15,end = 16))
     
-    name_id <- str_c("Kbladder_PUB_id_",date_jour,"_",date_mois, "_" , date_annee,"_" ,date_heure,".csv")
+    name_id <- str_c("shiny.step1",date_jour,"_",date_mois, "_" , date_annee,"_" ,date_heure,".csv")
     
     rv <- reactiveValues(title_abstract = "Etape 2 : creation de la base de donnees")
+    output$base <-renderPrint({
+        rv$title_abstract})
+    output$test <-renderPrint({
+        
+        "Etape 3 : passage en minuscule + supression caracteres speciaux"})
     num <- 1
     observeEvent(input$base, {rv$l <- length(pubmed$ids) })
     observeEvent(input$base, {rv$title_abstract <- NULL })
@@ -105,41 +115,43 @@ server <- function(input, output) {
             print(i)
         }
         num <- 10
-    }
-    )
-    
-    
-    output$base <-renderPrint({
         
         
-        rv$title_abstract[1:num]})
-    
-    
-    datas2 <- reactive({rv$title_abstract})
-    
-    
-    
-    
-    
-    clean_data <- reactive({str_replace_all(datas2(),"[[:punct:]]"," ")})
-    clean_data3 <- reactive({str_replace_all(clean_data(),"[[:cntrl:]]"," ")})
-    clean_data2 <- reactive({str_to_lower(clean_data3())})
-    
-    output$test <-renderPrint({
         
-        clean_data2()})
+        output$base <-renderPrint({
+            
+            
+            rv$title_abstract[1:num]})
+        
+        
+        datas2 <- reactive({rv$title_abstract})
+        
+        
+        clean_data <- reactive({str_replace_all(datas2(),"[[:punct:]]"," ")})
+        clean_data3 <- reactive({str_replace_all(clean_data(),"[[:cntrl:]]"," ")})
+        clean_data4 <- reactive({str_to_lower(clean_data3())})
+        clean_data2 <- reactive({cbind(pubmed$ids,clean_data4())})
+        
+        output$test <-renderPrint({
+            
+            clean_data2()[1:10,]})
+  
     
     output$downloadData <- downloadHandler(
         filename = function() {
-            paste("test", ".csv", sep = "")
+            name_id
         },
         content = function(file) {
             write.csv(clean_data2(), file, row.names = FALSE)
         }
     )
-    url <- a("step2", href=" https://temas.shinyapps.io/TEMAS_step2/") 
+    
+    
+      }
+    )
+    url <- a("step2", href=" https://step2.temas-bonnet.site/") 
     output$tab <- renderUI({ 
-        tagList("URL link:", url) 
+        tagList("Link to step2:", url) 
     }) 
 }
 # Run the application 
