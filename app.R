@@ -25,7 +25,7 @@ options(reutils.email = "emmanuelbeaunez@gmail.com")
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
-    
+    titlePanel("Global Search"),
     # Sidebar with a slider input for number of bins 
     sidebarLayout(
         sidebarPanel(
@@ -42,11 +42,12 @@ ui <- fluidPage(
         
         # Show a plot of the generated distribution
         mainPanel(
+            h2("Cliquer pour creer la base"),
             actionButton(inputId = "base", label = "creation base"),
-            h1("Base initiale"),
+            h3("Base initiale"),
             verbatimTextOutput("base"),
             # downloadButton("downloadData", "Download"),
-            h1("Base mise en forme"),
+            h3("Base mise en forme"),
             verbatimTextOutput("test"),
             downloadButton("downloadData", "Download"),
             uiOutput("tab")
@@ -92,7 +93,7 @@ server <- function(input, output) {
     date_annee <- str_sub(date(),start = 21,end = 24)
     date_heure <- str_c(str_sub(date(),start = 12,end = 13),"h", str_sub(date(),start = 15,end = 16))
     
-    name_id <- str_c("shiny.step1",date_jour,"_",date_mois, "_" , date_annee,"_" ,date_heure,".csv")
+    name_id <- str_c("shiny.step18",date_jour,"_",date_mois, "_" , date_annee,"_" ,date_heure,".csv")
     
     rv <- reactiveValues(title_abstract = "Etape 2 : creation de la base de donnees")
     output$base <-renderPrint({
@@ -121,7 +122,7 @@ server <- function(input, output) {
         output$base <-renderPrint({
             
             
-            rv$title_abstract[1:num]})
+            head(rv$title_abstract)})
         
         
         datas2 <- reactive({rv$title_abstract})
@@ -134,7 +135,7 @@ server <- function(input, output) {
         
         output$test <-renderPrint({
             
-            clean_data2()[1:10,]})
+            head(clean_data2())})
   
     
     output$downloadData <- downloadHandler(
