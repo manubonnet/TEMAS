@@ -93,7 +93,7 @@ server <- function(input, output) {
     date_annee <- str_sub(date(),start = 21,end = 24)
     date_heure <- str_c(str_sub(date(),start = 12,end = 13),"h", str_sub(date(),start = 15,end = 16))
     
-    name_id <- str_c("shiny.step18",date_jour,"_",date_mois, "_" , date_annee,"_" ,date_heure,".csv")
+    name_id <- str_c("shiny.step1_",date_jour,"_",date_mois, "_" , date_annee,"_" ,date_heure,".csv")
     
     rv <- reactiveValues(title_abstract = "Etape 2 : creation de la base de donnees")
     output$base <-renderPrint({
