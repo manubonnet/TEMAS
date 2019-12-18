@@ -9,7 +9,7 @@
 
 library(backports)
 if (!require("devtools"))
-    install.packages("devtools")
+  install.packages("devtools")
 if (!require("processx"))
     install.packages("processx")
 #install.packages("nlme")
@@ -150,7 +150,7 @@ server <- function(input, output) {
     
       }
     )
-    url <- a("step2", href=" https://step2.temas-bonnet.site/") 
+    url <- a("step2", href=" https://step3.temas-bonnet.site/TEMAS2") 
     output$tab <- renderUI({ 
         tagList("Link to step2:", url) 
     }) 
