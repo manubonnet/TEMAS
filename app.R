@@ -19,8 +19,8 @@ if (!require("scales"))
 library("devtools")
 library(shiny)
 #devtools::install_github("gschofl/reutils")
-set_entrez_key("34ad5abbcddf5a94d9dbfb34ad005be64d0a")
-options(reutils.api.key = "34ad5abbcddf5a94d9dbfb34ad005be64d0a")
+set_entrez_key("2f426efbccf334610530e682833b93e33508")
+options(reutils.api.key = "2f426efbccf334610530e682833b93e33508")
 options(reutils.email = "emmanuelbeaunez@gmail.com")
 #rsconnect::appDependencies()
 
@@ -62,10 +62,10 @@ server <- function(input, output) {
     library(rentrez)
     library("XML")
     library(reutils)
-    
+    set_entrez_key("2f426efbccf334610530e682833b93e33508")
     library(lubridate)
     library(stringr)
-    
+
     rv <- reactiveValues(data = NULL)
     rv <- reactiveValues(datedebut =  NULL)
     rv <- reactiveValues(datefin =  NULL)
@@ -82,7 +82,7 @@ server <- function(input, output) {
         pubmed$ids
     })
     a <- "Resultat"
-    observeEvent(input$go,{pubmed$ids <- entrez_search(db = "pubmed", term = rv$data ,mindate=rv$datedebut,maxdate=rv$datefin ,retmax=rv$n_max, api_key = "34ad5abbcddf5a94d9dbfb34ad005be64d0a")$ids 
+    observeEvent(input$go,{pubmed$ids <- entrez_search(db = "pubmed", term = rv$data ,mindate=rv$datedebut,maxdate=rv$datefin ,retmax=rv$n_max, api_key = "2f426efbccf334610530e682833b93e33508")$ids 
     #entrez_search(db = "pubmed", term = rv$data ,mindate=rv$datedebut,maxdate=rv$datefin ,retmax="15")}
     output$value <-renderPrint({
         pubmed$ids[1:10]
