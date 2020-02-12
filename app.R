@@ -113,6 +113,7 @@ server <- function(input, output) {
         for (i in 1:rv$l) {
             progress$inc(1/rv$l, detail = paste("Doing part", i))
             article <- efetch(pubmed$ids[i],"pubmed")
+          time.sleep(0.34)
             rv$title_abstract <- c(rv$title_abstract,paste(article$xmlValue("//Title"),article$xmlValue("//Abstract")))
             print(i)
         }
