@@ -25,7 +25,7 @@ library("XML")
 
 library(lubridate)
 library(stringr)
-
+library("shinyWidgets")
 #devtools::install_github("gschofl/reutils")
 set_entrez_key("2f426efbccf334610530e682833b93e33508")
 Sys.getenv("ENTREZ_KEY")
@@ -35,61 +35,99 @@ options(reutils.email = "emmanuelbeaunez@gmail.com")
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
+  tags$head(
+    tags$style(HTML("hr {border-top: 1px solid #000000;}")),),
   titlePanel("Global Search"),
   # Sidebar with a slider input for number of bins 
   sidebarLayout(
     sidebarPanel(
-      textInput("text", label = h3("Recherche"), value = "Enter text..."),
-      dateInput("datedebut", label = h3("Date debut"), value = "2006-01-01"),
-      dateInput("datefin", label = h3("Date fin"), value = "2017-12-31"),
-      numericInput("num_max", label = h3("Num max"), value = 2),
-      actionButton(inputId = "go", label = "Update"),
+      h3("Step 1 : Define search parameters"),
+      textInput("text", label = h4("Pubmed Search"), value = "Enter text..."),
+      # dateInput("datedebut", label = h5("From"), value = "2006-01-01"),
+      # dateInput("datefin", label = h5("to"), value = "2017-12-31"),
+      dateRangeInput("dates", label = h4("Publication dates"),
+                     start = Sys.Date() - 365, end = Sys.Date(),
+                     max = Sys.Date(), weekstart = 1),
+      numericInput("num_max", label = h4("Maximum number of articles to retrieve"), value = 500),
+      actionButton(inputId = "go", label = "Save search parameters"),
       
-      verbatimTextOutput("value")
-      
+      # verbatimTextOutput("value")
+      conditionalPanel("input.go",
+                       hr(),
+                       h3("Step 2 : Create database"),
+                       actionButton(inputId = "base", label = "Create database"),
+      ),
+      conditionalPanel("input.base",
+                       hr(),
+                       h3("Step 3 : Download database"),
+                       downloadButton("downloadData", "Download database"),
+                       uiOutput("tab")
+      )
     ),
     
     
-    # Show a plot of the generated distribution
+    
     mainPanel(
-      h2("Cliquer pour creer la base"),
-      actionButton(inputId = "base", label = "creation base"),
-      h3("Base initiale"),
-      verbatimTextOutput("base"),
+      
+      # h3("Base initiale"),
+      # verbatimTextOutput("base"),
       # downloadButton("downloadData", "Download"),
-      h3("Base mise en forme"),
-      verbatimTextOutput("test"),
-      downloadButton("downloadData", "Download"),
-      uiOutput("tab")
+      conditionalPanel("input.base",
+                       h3("Database Preview"),
+                       tableOutput("test")
+      )
     )
   )
 )
 
 # Define server logic required to draw a histogram
-server <- function(input, output) {
+server <- function(input, output,session) {
   
-
+  
   rv <- reactiveValues(data = NULL)
   rv <- reactiveValues(datedebut =  NULL)
   rv <- reactiveValues(datefin =  NULL)
   rv <- reactiveValues(n_max =NULL)
+  rv <- reactiveValues(datedebut1 =NULL)
+  rv <- reactiveValues(datefin1 =NULL)
   
-  observeEvent(input$go, {rv$data <- input$text })
-  observeEvent(input$go, {rv$datedebut <-  str_c(str_sub(input$datedebut,1,4),"/",str_sub(input$datedebut,6,7),"/",str_sub(input$datedebut,9,10))})
-  observeEvent(input$go, {rv$datefin <- str_c(str_sub(input$datefin,1,4),"/",str_sub(input$datefin,6,7),"/",str_sub(input$datefin,9,10))})
-  observeEvent(input$go, {rv$n_max <- input$num_max })
+  
+  observeEvent(input$go, {
+    rv$datedebut1 <- input$dates[1]
+    rv$datefin1 <- input$dates[2]
+    rv$data <- input$text
+    rv$datedebut <-  str_c(str_sub(rv$datedebut1 ,1,4),"/",str_sub(rv$datedebut1 ,6,7),"/",str_sub(rv$datedebut1 ,9,10))
+    rv$datefin <- str_c(str_sub(rv$datefin1 ,1,4),"/",str_sub(rv$datefin1 ,6,7),"/",str_sub(rv$datefin1 ,9,10))
+    rv$n_max <- input$num_max
+  })
+  
   
   
   pubmed <- reactiveValues(ids="Attente confirmation")
-  output$value <-renderPrint({
-    pubmed$ids
-  })
+  # output$value <-renderPrint({
+  #   pubmed$ids
+  # })
   a <- "Resultat"
-  observeEvent(input$go,{pubmed$ids <- entrez_search(db = "pubmed", term = rv$data ,mindate=rv$datedebut,maxdate=rv$datefin ,retmax=rv$n_max)$ids 
-  #entrez_search(db = "pubmed", term = rv$data ,mindate=rv$datedebut,maxdate=rv$datefin ,retmax="15")}
-  output$value <-renderPrint({
-    pubmed$ids[1:10]
-  })
+  observeEvent(input$go,{
+    sendSweetAlert(
+      session = session,
+      btn_labels = NA,
+      title = "Saving parameters...",
+      text = "Please wait until \"Done !\" appears on your screen.",
+      closeOnClickOutside = F,
+      type = "warning"
+    )
+    pubmed$ids <- entrez_search(db = "pubmed", term = rv$data ,mindate=rv$datedebut,maxdate=rv$datefin ,retmax=rv$n_max)$ids 
+    #entrez_search(db = "pubmed", term = rv$data ,mindate=rv$datedebut,maxdate=rv$datefin ,retmax="15")}
+    output$value <-renderPrint({
+      pubmed$ids[1:10]
+    })
+    sendSweetAlert(
+      session = session,
+      title = "Done !",
+      text = "Search parameters saved !",
+      type = "success"
+    )  
   })
   
   date_jour <- str_sub(date(),start = 9,end = 10)
@@ -104,12 +142,20 @@ server <- function(input, output) {
     rv$title_abstract})
   output$test <-renderPrint({
     
-    "Etape 3 : passage en minuscule + supression caracteres speciaux"})
+    "Waiting..."})
   num <- 1
   observeEvent(input$base, {rv$l <- length(pubmed$ids) })
   observeEvent(input$base, {rv$title_abstract <- NULL })
   
   observeEvent(input$base, {
+    sendSweetAlert(
+      session = session,
+      btn_labels = NA,
+      title = "Downloading articles...",
+      text = "Please wait until \"Done !\" appears on your screen.",
+      closeOnClickOutside = F,
+      type = "warning"
+    )
     progress <- shiny::Progress$new()
     on.exit(progress$close())
     progress$set(message = "Creating database", value = 0)
@@ -149,11 +195,18 @@ server <- function(input, output) {
     clean_data3 <- reactive({str_replace_all(clean_data(),"[[:cntrl:]]"," ")})
     clean_data4 <- reactive({str_to_lower(clean_data3())})
     clean_data2 <- reactive({cbind(pubmed$ids,clean_data4())})
+    final_data <- clean_data2()
+    colnames(final_data)<- c("uid","Title_and_abstract")
     
-    output$test <-renderPrint({
+    output$test <-renderTable({
       
-      head(clean_data2())})
-    
+      head(final_data,n=10L,addrownums=F)})
+    sendSweetAlert(
+      session = session,
+      title = "Done !",
+      text = "Search complete !",
+      type = "success"
+    )  
     
     output$downloadData <- downloadHandler(
       filename = function() {
