@@ -29,6 +29,7 @@ library("shinyWidgets")
 #devtools::install_github("gschofl/reutils")
 set_entrez_key("2f426efbccf334610530e682833b93e33508")
 Sys.getenv("ENTREZ_KEY")
+options("scipen"=100)
 options(reutils.api.key = "34ad5abbcddf5a94d9dbfb34ad005be64d0a")
 options(reutils.email = "emmanuelbeaunez@gmail.com")
 #rsconnect::appDependencies()
@@ -119,9 +120,9 @@ server <- function(input, output,session) {
     )
     pubmed$ids <- entrez_search(db = "pubmed", term = rv$data ,mindate=rv$datedebut,maxdate=rv$datefin ,retmax=rv$n_max)$ids 
     #entrez_search(db = "pubmed", term = rv$data ,mindate=rv$datedebut,maxdate=rv$datefin ,retmax="15")}
-    output$value <-renderPrint({
-      pubmed$ids[1:10]
-    })
+    # output$value <-renderPrint({
+    #   pubmed$ids[1:10]
+    # })
     sendSweetAlert(
       session = session,
       title = "Done !",
@@ -140,9 +141,9 @@ server <- function(input, output,session) {
   rv <- reactiveValues(title_abstract = "Etape 2 : creation de la base de donnees")
   output$base <-renderPrint({
     rv$title_abstract})
-  output$test <-renderPrint({
-    
-    "Waiting..."})
+  # output$test <-renderPrint({
+  #   
+  #   "Waiting..."})
   num <- 1
   observeEvent(input$base, {rv$l <- length(pubmed$ids) })
   observeEvent(input$base, {rv$title_abstract <- NULL })
