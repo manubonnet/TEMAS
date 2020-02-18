@@ -43,13 +43,13 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       h3("Step 1 : Define search parameters"),
-      textInput("text", label = h4("Pubmed Search"), value = "Enter text..."),
+      textInput("text", label = h4("Pubmed Search"), value = "breast_cancer AND risk_factor"),
       # dateInput("datedebut", label = h5("From"), value = "2006-01-01"),
       # dateInput("datefin", label = h5("to"), value = "2017-12-31"),
       dateRangeInput("dates", label = h4("Publication dates"),
-                     start = Sys.Date() - 365, end = Sys.Date(),
+                     start = Sys.Date() - 3652, end = Sys.Date(),
                      max = Sys.Date(), weekstart = 1),
-      numericInput("num_max", label = h4("Maximum number of articles to retrieve"), value = 500),
+      numericInput("num_max", label = h4("Maximum number of articles to retrieve"), value = 500,min=100,max=50000,step = 100),
       actionButton(inputId = "go", label = "Save search parameters"),
       
       # verbatimTextOutput("value")
@@ -118,7 +118,10 @@ server <- function(input, output,session) {
       closeOnClickOutside = F,
       type = "warning"
     )
-    pubmed$ids <- entrez_search(db = "pubmed", term = rv$data ,mindate=rv$datedebut,maxdate=rv$datefin ,retmax=rv$n_max)$ids 
+    pubmed$total <- entrez_search(db = "pubmed", term = rv$data ,mindate=rv$datedebut,maxdate=rv$datefin ,retmax=rv$n_max,use_history = T) 
+    pubmed$ids <- pubmed$total$ids
+    print(length(pubmed$ids))
+    pubmed$history <- pubmed$total$web_history
     #entrez_search(db = "pubmed", term = rv$data ,mindate=rv$datedebut,maxdate=rv$datefin ,retmax="15")}
     # output$value <-renderPrint({
     #   pubmed$ids[1:10]
@@ -157,30 +160,26 @@ server <- function(input, output,session) {
       closeOnClickOutside = F,
       type = "warning"
     )
-    progress <- shiny::Progress$new()
-    on.exit(progress$close())
-    progress$set(message = "Creating database", value = 0)
-    for (i in 1:rv$l) {
-      progress$inc(1/rv$l, detail = paste("Doing part", i))
-      # article <- efetch(pubmed$ids[i],"pubmed")
-      # rv$title_abstract <- c(rv$title_abstract,paste(article$xmlValue("//Title"),article$xmlValue("//Abstract")))
-      # print(i)
-      article <- entrez_fetch(db="pubmed",rettype ="xml",parsed = T,id=pubmed$ids[i])
-      rv$ieme <- XML::xpathSApply(article, "//AbstractText", XML::xmlValue)
-      if(length(rv$ieme)>1){
-        rv$ieme2 <- rv$ieme[1]
-        for (k in 1:(length(rv$ieme)-1)) {
-          rv$ieme2 <- paste(rv$ieme2,rv$ieme[k+1])
-        }
-        rv$ieme <- rv$ieme2
-      }
-      if(length(rv$ieme)==0) rv$ieme <- "NA"
-      rv$ieme <- paste((XML::xpathSApply(article, "//ArticleTitle", XML::xmlValue)),rv$ieme)
-      rv$title_abstract <-c(rv$title_abstract,rv$ieme) 
+    pubmed$ids2 <- NULL
+    # article <- efetch(pubmed$ids[i],"pubmed")
+    # rv$title_abstract <- c(rv$title_abstract,paste(article$xmlValue("//Title"),article$xmlValue("//Abstract")))
+    # print(i)
+    article <- entrez_fetch(db="pubmed",web_history = pubmed$total$web_history ,rettype ="xml",parsed = T,retmax = rv$n_max)
+    b <- getNodeSet(article,"//PubmedArticle")
+    print(length(b))
+    for (i in 1:length(b)) {
+      bbb <- xmlSerializeHook(b[[i]])
+      bbb <- xmlDeserializeHook(bbb)
+      ttt <- XML::xpathSApply(bbb, "//Abstract", XML::xmlValue)
+      aaa <- XML::xpathSApply(bbb, "//PubmedData/ArticleIdList/ArticleId[@IdType='pubmed']", XML::xmlValue)
+      if(length(ttt)==0) ttt <- "NA"
+      ttt <- paste((XML::xpathSApply(bbb, "//ArticleTitle", XML::xmlValue)),ttt)
+      rv$title_abstract <-c(rv$title_abstract,ttt)
+      pubmed$ids2 <-c(pubmed$ids2,aaa)
       print(i)
     }
     num <- 10
-    
+    print(length(pubmed$ids2))
     
     
     output$base <-renderPrint({
@@ -195,7 +194,7 @@ server <- function(input, output,session) {
     clean_data <- reactive({str_replace_all(datas2(),"[[:punct:]]"," ")})
     clean_data3 <- reactive({str_replace_all(clean_data(),"[[:cntrl:]]"," ")})
     clean_data4 <- reactive({str_to_lower(clean_data3())})
-    clean_data2 <- reactive({cbind(pubmed$ids,clean_data4())})
+    clean_data2 <- reactive({cbind(pubmed$ids2,clean_data4())})
     final_data <- clean_data2()
     colnames(final_data)<- c("uid","Title_and_abstract")
     
