@@ -43,18 +43,23 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       h3("Step 1 : Define search parameters"),
-      textInput("text", label = h4("Pubmed Search"), value = "breast_cancer AND risk_factor"),
+      textInput("text", label = h4("Pubmed Search"), value = "breast_cancer[MeSH Terms] AND risk_factor[MeSH Terms]"),
       # dateInput("datedebut", label = h5("From"), value = "2006-01-01"),
       # dateInput("datefin", label = h5("to"), value = "2017-12-31"),
       dateRangeInput("dates", label = h4("Publication dates"),
                      start = Sys.Date() - 3652, end = Sys.Date(),
                      max = Sys.Date(), weekstart = 1),
-      numericInput("num_max", label = h4("Maximum number of articles to retrieve"), value = 500,min=100,max=50000,step = 100),
       actionButton(inputId = "go", label = "Save search parameters"),
       
       # verbatimTextOutput("value")
       conditionalPanel("input.go",
+                       h4("Query Translation:"),
+                       textOutput("QueryTranslation"),
+                       h4("Number of PubMed answers:"),
+                       textOutput("count"),
+                       
                        hr(),
+                       numericInput("num_max", label = h4("Maximum number of articles to retrieve \n (approx 15s/1000 articles)"), value = 500,min=100,max=50000,step = 100),
                        h3("Step 2 : Create database"),
                        actionButton(inputId = "base", label = "Create database"),
       ),
@@ -99,7 +104,7 @@ server <- function(input, output,session) {
     rv$data <- input$text
     rv$datedebut <-  str_c(str_sub(rv$datedebut1 ,1,4),"/",str_sub(rv$datedebut1 ,6,7),"/",str_sub(rv$datedebut1 ,9,10))
     rv$datefin <- str_c(str_sub(rv$datefin1 ,1,4),"/",str_sub(rv$datefin1 ,6,7),"/",str_sub(rv$datefin1 ,9,10))
-    rv$n_max <- input$num_max
+    
   })
   
   
@@ -118,10 +123,15 @@ server <- function(input, output,session) {
       closeOnClickOutside = F,
       type = "warning"
     )
-    pubmed$total <- entrez_search(db = "pubmed", term = rv$data ,mindate=rv$datedebut,maxdate=rv$datefin ,retmax=rv$n_max,use_history = T) 
+    pubmed$total <- entrez_search(db = "pubmed", term = rv$data ,mindate=rv$datedebut,maxdate=rv$datefin,use_history = T) 
     pubmed$ids <- pubmed$total$ids
     print(length(pubmed$ids))
     pubmed$history <- pubmed$total$web_history
+    output$QueryTranslation <- renderText(pubmed$total$QueryTranslation)
+    output$count <- renderText(pubmed$total$count)
+    updateNumericInput(session, "num_max",
+                       value = min(pubmed$total$count,10000), min = 100, max = pubmed$total$count)
+    
     #entrez_search(db = "pubmed", term = rv$data ,mindate=rv$datedebut,maxdate=rv$datefin ,retmax="15")}
     # output$value <-renderPrint({
     #   pubmed$ids[1:10]
@@ -152,6 +162,7 @@ server <- function(input, output,session) {
   observeEvent(input$base, {rv$title_abstract <- NULL })
   
   observeEvent(input$base, {
+    rv$n_max <- min(input$num_max,pubmed$total$count)
     sendSweetAlert(
       session = session,
       btn_labels = NA,
@@ -164,19 +175,57 @@ server <- function(input, output,session) {
     # article <- efetch(pubmed$ids[i],"pubmed")
     # rv$title_abstract <- c(rv$title_abstract,paste(article$xmlValue("//Title"),article$xmlValue("//Abstract")))
     # print(i)
-    article <- entrez_fetch(db="pubmed",web_history = pubmed$total$web_history ,rettype ="xml",parsed = T,retmax = rv$n_max)
-    b <- getNodeSet(article,"//PubmedArticle")
+    niter <- floor(rv$n_max/10000)
+    for (i in 0:(niter-1)) {
+      article <- entrez_fetch(db="pubmed",web_history = pubmed$total$web_history ,rettype ="xml",parsed = T,retmax = 10000, retstart = i*10000)
+      b <- getNodeSet(article,"//MedlineCitation")
+      print(length(b))
+      for (i in 1:length(b)) {
+        bbb <- xmlSerializeHook(b[[i]])
+        bbb <- xmlDeserializeHook(bbb)
+        ttt <- XML::xpathSApply(bbb, "//Abstract", XML::xmlValue)
+        aaa <- XML::xpathSApply(bbb, "///MedlineCitation/PMID[@Version='1']", XML::xmlValue)
+        if(length(ttt)==0) ttt <- "NA"
+        if(length(aaa)==0) aaa <- "NA"
+        ttt <- paste((XML::xpathSApply(bbb, "//ArticleTitle", XML::xmlValue)),ttt)
+        rv$title_abstract <-c(rv$title_abstract,ttt)
+        pubmed$ids2 <-c(pubmed$ids2,aaa)
+        print(i)
+      }
+    }
+    article <- entrez_fetch(db="pubmed",web_history = pubmed$total$web_history ,rettype ="xml",parsed = T,retmax = (rv$n_max-10000*niter), retstart = (niter*10000))
+    b <- getNodeSet(article,"//MedlineCitation")
     print(length(b))
     for (i in 1:length(b)) {
       bbb <- xmlSerializeHook(b[[i]])
       bbb <- xmlDeserializeHook(bbb)
       ttt <- XML::xpathSApply(bbb, "//Abstract", XML::xmlValue)
-      aaa <- XML::xpathSApply(bbb, "//PubmedData/ArticleIdList/ArticleId[@IdType='pubmed']", XML::xmlValue)
+      aaa <- XML::xpathSApply(bbb, "///MedlineCitation/PMID[@Version='1']", XML::xmlValue)
       if(length(ttt)==0) ttt <- "NA"
+      if(length(aaa)==0) aaa <- "NA"
       ttt <- paste((XML::xpathSApply(bbb, "//ArticleTitle", XML::xmlValue)),ttt)
       rv$title_abstract <-c(rv$title_abstract,ttt)
       pubmed$ids2 <-c(pubmed$ids2,aaa)
       print(i)
+    }
+    zzz <- 0
+    while(length(pubmed$ids2)<rv$n_max & (rv$n_max + zzz < pubmed$total$count)){
+      article <- entrez_fetch(db="pubmed",web_history = pubmed$total$web_history ,rettype ="xml",parsed = T,retmax = (rv$n_max-length(pubmed$ids2)),retstart= rv$n_max+zzz )
+      zzz <- zzz + (rv$n_max-length(pubmed$ids2))
+      b <- getNodeSet(article,"//MedlineCitation")
+      print(length(b))
+      for (i in 1:length(b)) {
+        bbb <- xmlSerializeHook(b[[i]])
+        bbb <- xmlDeserializeHook(bbb)
+        ttt <- XML::xpathSApply(bbb, "//Abstract", XML::xmlValue)
+        aaa <- XML::xpathSApply(bbb, "///MedlineCitation/PMID[@Version='1']", XML::xmlValue)
+        if(length(ttt)==0) ttt <- "NA"
+        if(length(aaa)==0) aaa <- "NA"
+        ttt <- paste((XML::xpathSApply(bbb, "//ArticleTitle", XML::xmlValue)),ttt)
+        rv$title_abstract <-c(rv$title_abstract,ttt)
+        pubmed$ids2 <-c(pubmed$ids2,aaa)
+        print(i)
+      }
     }
     num <- 10
     print(length(pubmed$ids2))
