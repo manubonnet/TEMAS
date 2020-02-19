@@ -43,7 +43,7 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       h3("Step 1 : Define search parameters"),
-      textInput("text", label = h4("Pubmed Search"), value = "breast_cancer[MeSH Terms] AND risk_factor[MeSH Terms]"),
+      textAreaInput("text", label = h4("Pubmed Search"), value = "breast_cancer[MeSH Terms] AND risk_factor[MeSH Terms]",width = '100%',resize = "vertical"),
       # dateInput("datedebut", label = h5("From"), value = "2006-01-01"),
       # dateInput("datefin", label = h5("to"), value = "2017-12-31"),
       dateRangeInput("dates", label = h4("Publication dates"),
@@ -176,8 +176,20 @@ server <- function(input, output,session) {
     # rv$title_abstract <- c(rv$title_abstract,paste(article$xmlValue("//Title"),article$xmlValue("//Abstract")))
     # print(i)
     niter <- floor(rv$n_max/10000)
-    for (i in 0:(niter-1)) {
-      article <- entrez_fetch(db="pubmed",web_history = pubmed$total$web_history ,rettype ="xml",parsed = T,retmax = 10000, retstart = i*10000)
+    for (i in 0:(max(0,(niter-1)))) {
+      sendSweetAlert(
+        session = session,
+        btn_labels = NA,
+        title = "Downloading articles...",
+        text = tags$span("Please wait until \"Done !\" appears on your screen.",
+                        tags$br(),
+                        paste("Step",i+1,"/",niter+3)
+        ),
+        closeOnClickOutside = F,
+        type = "warning"
+      )
+      print("passage")
+      article <- entrez_fetch(db="pubmed",web_history = pubmed$total$web_history ,rettype ="xml",parsed = T,retmax = min(10000,rv$n_max), retstart = i*10000)
       b <- getNodeSet(article,"//MedlineCitation")
       print(length(b))
       for (i in 1:length(b)) {
@@ -193,23 +205,50 @@ server <- function(input, output,session) {
         print(i)
       }
     }
-    article <- entrez_fetch(db="pubmed",web_history = pubmed$total$web_history ,rettype ="xml",parsed = T,retmax = (rv$n_max-10000*niter), retstart = (niter*10000))
-    b <- getNodeSet(article,"//MedlineCitation")
-    print(length(b))
-    for (i in 1:length(b)) {
-      bbb <- xmlSerializeHook(b[[i]])
-      bbb <- xmlDeserializeHook(bbb)
-      ttt <- XML::xpathSApply(bbb, "//Abstract", XML::xmlValue)
-      aaa <- XML::xpathSApply(bbb, "///MedlineCitation/PMID[@Version='1']", XML::xmlValue)
-      if(length(ttt)==0) ttt <- "NA"
-      if(length(aaa)==0) aaa <- "NA"
-      ttt <- paste((XML::xpathSApply(bbb, "//ArticleTitle", XML::xmlValue)),ttt)
-      rv$title_abstract <-c(rv$title_abstract,ttt)
-      pubmed$ids2 <-c(pubmed$ids2,aaa)
-      print(i)
+    if(niter>=1 & rv$n_max != 10000 & rv$n_max != 20000  & rv$n_max != 30000& rv$n_max != 40000& rv$n_max != 50000){
+      sendSweetAlert(
+        session = session,
+        btn_labels = NA,
+        title = "Downloading articles...",
+        text = tags$span("Please wait until \"Done !\" appears on your screen.",
+                         tags$br(),
+                         paste("Step",niter+2,"/",niter+3)
+        ),
+        closeOnClickOutside = F,
+        type = "warning"
+      )
+      print("pas_bon")
+      article <- entrez_fetch(db="pubmed",web_history = pubmed$total$web_history ,rettype ="xml",parsed = T,retmax = (rv$n_max-10000*niter), retstart = (niter*10000))
+      b <- getNodeSet(article,"//MedlineCitation")
+      print(length(b))
+      for (i in 1:length(b)) {
+        bbb <- xmlSerializeHook(b[[i]])
+        bbb <- xmlDeserializeHook(bbb)
+        ttt <- XML::xpathSApply(bbb, "//Abstract", XML::xmlValue)
+        aaa <- XML::xpathSApply(bbb, "///MedlineCitation/PMID[@Version='1']", XML::xmlValue)
+        if(length(ttt)==0) ttt <- "NA"
+        if(length(aaa)==0) aaa <- "NA"
+        ttt <- paste((XML::xpathSApply(bbb, "//ArticleTitle", XML::xmlValue)),ttt)
+        rv$title_abstract <-c(rv$title_abstract,ttt)
+        pubmed$ids2 <-c(pubmed$ids2,aaa)
+        print(i)
+      }
     }
+    
     zzz <- 0
     while(length(pubmed$ids2)<rv$n_max & (rv$n_max + zzz < pubmed$total$count)){
+      sendSweetAlert(
+        session = session,
+        btn_labels = NA,
+        title = "Downloading articles...",
+        text = tags$span("Please wait until \"Done !\" appears on your screen.",
+                         tags$br(),
+                         paste("Step",niter+3,"/",niter+3)
+        ),
+        closeOnClickOutside = F,
+        type = "warning"
+      )
+      print("PK")
       article <- entrez_fetch(db="pubmed",web_history = pubmed$total$web_history ,rettype ="xml",parsed = T,retmax = (rv$n_max-length(pubmed$ids2)),retstart= rv$n_max+zzz )
       zzz <- zzz + (rv$n_max-length(pubmed$ids2))
       b <- getNodeSet(article,"//MedlineCitation")
