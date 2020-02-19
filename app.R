@@ -183,7 +183,7 @@ server <- function(input, output,session) {
         title = "Downloading articles...",
         text = tags$span("Please wait until \"Done !\" appears on your screen.",
                         tags$br(),
-                        paste("Step",i+1,"/",niter+3)
+                        paste("Step",i+1,"/",niter+2)
         ),
         closeOnClickOutside = F,
         type = "warning"
@@ -212,7 +212,7 @@ server <- function(input, output,session) {
         title = "Downloading articles...",
         text = tags$span("Please wait until \"Done !\" appears on your screen.",
                          tags$br(),
-                         paste("Step",niter+2,"/",niter+3)
+                         paste("Step",niter+1,"/",niter+2)
         ),
         closeOnClickOutside = F,
         type = "warning"
@@ -243,7 +243,7 @@ server <- function(input, output,session) {
         title = "Downloading articles...",
         text = tags$span("Please wait until \"Done !\" appears on your screen.",
                          tags$br(),
-                         paste("Step",niter+3,"/",niter+3)
+                         paste("Step",niter+2,"/",niter+2)
         ),
         closeOnClickOutside = F,
         type = "warning"
