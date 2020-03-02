@@ -42,14 +42,24 @@ ui <- fluidPage(
   # Sidebar with a slider input for number of bins 
   sidebarLayout(
     sidebarPanel(
-      h3("Step 1 : Define search parameters"),
-      textAreaInput("text", label = h4("Pubmed Search"), value = "breast_cancer[MeSH Terms] AND risk_factor[MeSH Terms]",width = '100%',resize = "vertical"),
-      # dateInput("datedebut", label = h5("From"), value = "2006-01-01"),
-      # dateInput("datefin", label = h5("to"), value = "2017-12-31"),
-      dateRangeInput("dates", label = h4("Publication dates"),
-                     start = Sys.Date() - 3652, end = Sys.Date(),
-                     max = Sys.Date(), weekstart = 1),
-      actionButton(inputId = "go", label = "Save search parameters"),
+      conditionalPanel("output.re_1 == '1'",
+                       fluidRow(
+                         column(10,h3("Step 1 : Define search \n parameters")),
+                         column(1,actionButton("re_1h", "",icon = icon("angle-double-up")),align="right")
+                       ),
+                       textAreaInput("text", label = h4("Pubmed Search"), value = "breast_cancer[MeSH Terms] AND risk_factor[MeSH Terms]",width = '100%',resize = "vertical"),
+                       # dateInput("datedebut", label = h5("From"), value = "2006-01-01"),
+                       # dateInput("datefin", label = h5("to"), value = "2017-12-31"),
+                       dateRangeInput("dates", label = h4("Publication dates"),
+                                      start = Sys.Date() - 3652, end = Sys.Date(),
+                                      max = Sys.Date(), weekstart = 1),
+                       actionButton(inputId = "go", label = "Save search parameters")),
+      conditionalPanel("output.re_1 == '1bis'",
+                       fluidRow(
+                         column(10,h3("Step 1 : Define search parameters")),
+                                column(1,actionButton("re_1", "",icon = icon("angle-double-down")),align="right")
+                       )
+      ),
       
       # verbatimTextOutput("value")
       conditionalPanel("input.go",
@@ -59,8 +69,8 @@ ui <- fluidPage(
                        textOutput("count"),
                        
                        hr(),
-                       numericInput("num_max", label = h4("Maximum number of articles to retrieve \n (approx 15s/1000 articles)"), value = 500,min=100,max=50000,step = 100),
                        h3("Step 2 : Create database"),
+                       numericInput("num_max", label = h4("Maximum number of articles to retrieve \n (approx 15s/1000 articles)"), value = 500,min=100,max=50000),
                        actionButton(inputId = "base", label = "Create database"),
       ),
       conditionalPanel("input.base",
@@ -89,6 +99,14 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram
 server <- function(input, output,session) {
   
+  output$re_1 <- renderText('1')
+  outputOptions(output, "re_1", suspendWhenHidden = FALSE)
+  observeEvent(input$re_1,{
+    output$re_1 <- renderText('1')
+  })
+  observeEvent(input$re_1h,{
+    output$re_1 <- renderText('1bis')
+  })
   
   rv <- reactiveValues(data = NULL)
   rv <- reactiveValues(datedebut =  NULL)
@@ -115,6 +133,7 @@ server <- function(input, output,session) {
   # })
   a <- "Resultat"
   observeEvent(input$go,{
+    output$re_1 <- renderText('1bis')
     sendSweetAlert(
       session = session,
       btn_labels = NA,
@@ -182,8 +201,8 @@ server <- function(input, output,session) {
         btn_labels = NA,
         title = "Downloading articles...",
         text = tags$span("Please wait until \"Done !\" appears on your screen.",
-                        tags$br(),
-                        paste("Step",i+1,"/",niter+2)
+                         tags$br(),
+                         paste("Step",i+1,"/",niter+2)
         ),
         closeOnClickOutside = F,
         type = "warning"
