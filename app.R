@@ -47,7 +47,7 @@ ui <- fluidPage(
                          column(10,h3("Step 1 : Define search \n parameters")),
                          column(1,actionButton("re_1h", "",icon = icon("angle-double-up")),align="right")
                        ),
-                       textAreaInput("text", label = h4("Pubmed Search"), value = "breast_cancer[MeSH Terms] AND risk_factor[MeSH Terms]",width = '100%',resize = "vertical"),
+                       textAreaInput("text", label = h4("Pubmed Search"), value = "(risk_factor[MeSH Terms] OR risk_factor[Title/Abstract]) AND (Breast_cancer[MeSH Terms] OR Breast_cancer[Title/Abstract])",width = '100%',resize = "vertical"),
                        # dateInput("datedebut", label = h5("From"), value = "2006-01-01"),
                        # dateInput("datefin", label = h5("to"), value = "2017-12-31"),
                        dateRangeInput("dates", label = h4("Publication dates"),
@@ -300,7 +300,8 @@ server <- function(input, output,session) {
     
     clean_data <- reactive({str_replace_all(datas2(),"[[:punct:]]"," ")})
     clean_data3 <- reactive({str_replace_all(clean_data(),"[[:cntrl:]]"," ")})
-    clean_data4 <- reactive({str_to_lower(clean_data3())})
+    clean_data5 <- reactive({str_to_lower(clean_data3())})
+    clean_data4 <- reactive({iconv(clean_data5(), to="ASCII//TRANSLIT//IGNORE")})
     clean_data2 <- reactive({cbind(pubmed$ids2,clean_data4())})
     final_data <- clean_data2()
     colnames(final_data)<- c("uid","Title_and_abstract")
