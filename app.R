@@ -149,7 +149,7 @@ server <- function(input, output,session) {
     output$QueryTranslation <- renderText(pubmed$total$QueryTranslation)
     output$count <- renderText(pubmed$total$count)
     updateNumericInput(session, "num_max",
-                       value = min(pubmed$total$count,10000), min = 100, max = pubmed$total$count)
+                       value = pubmed$total$count, min = 100, max = pubmed$total$count)
     
     #entrez_search(db = "pubmed", term = rv$data ,mindate=rv$datedebut,maxdate=rv$datefin ,retmax="15")}
     # output$value <-renderPrint({
